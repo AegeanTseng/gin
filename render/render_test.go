@@ -62,7 +62,7 @@ func TestRenderJSON(t *testing.T) {
 	err := (JSON{data}).Render(w)
 
 	assert.NoError(t, err)
-	assert.Equal(t, "{\"foo\":\"bar\",\"html\":\"\\u003cb\\u003e\"}", w.Body.String())
+	assert.Equal(t, "{\"foo\":\"bar\",\"html\":\"\\u003cb\\u003e\"}\n", w.Body.String())
 	assert.Equal(t, "application/json; charset=utf-8", w.Header().Get("Content-Type"))
 }
 
@@ -71,7 +71,7 @@ func TestRenderJSONPanics(t *testing.T) {
 	data := make(chan int)
 
 	// json: unsupported type: chan int
-	assert.Panics(t, func() { (JSON{data}).Render(w) })
+	assert.Panics(t, func() { assert.NoError(t, (JSON{data}).Render(w)) })
 }
 
 func TestRenderIndentedJSON(t *testing.T) {
@@ -215,6 +215,18 @@ func TestRenderAsciiJSONFail(t *testing.T) {
 	assert.Error(t, (AsciiJSON{data}).Render(w))
 }
 
+func TestRenderPureJSON(t *testing.T) {
+	w := httptest.NewRecorder()
+	data := map[string]interface{}{
+		"foo":  "bar",
+		"html": "<b>",
+	}
+	err := (PureJSON{data}).Render(w)
+	assert.NoError(t, err)
+	assert.Equal(t, "{\"foo\":\"bar\",\"html\":\"<b>\"}\n", w.Body.String())
+	assert.Equal(t, "application/json; charset=utf-8", w.Header().Get("Content-Type"))
+}
+
 type xmlmap map[string]interface{}
 
 // Allows type H to be used with xml.Marshal
@@ -335,7 +347,7 @@ func TestRenderRedirect(t *testing.T) {
 	}
 
 	w = httptest.NewRecorder()
-	assert.Panics(t, func() { data2.Render(w) })
+	assert.Panics(t, func() { assert.NoError(t, data2.Render(w)) })
 
 	// only improve coverage
 	data2.WriteContentType(w)
@@ -470,6 +482,7 @@ func TestRenderReader(t *testing.T) {
 	body := "#!PNG some raw data"
 	headers := make(map[string]string)
 	headers["Content-Disposition"] = `attachment; filename="filename.png"`
+	headers["x-request-id"] = "requestId"
 
 	err := (Reader{
 		ContentLength: int64(len(body)),
@@ -483,4 +496,5 @@ func TestRenderReader(t *testing.T) {
 	assert.Equal(t, "image/png", w.Header().Get("Content-Type"))
 	assert.Equal(t, strconv.Itoa(len(body)), w.Header().Get("Content-Length"))
 	assert.Equal(t, headers["Content-Disposition"], w.Header().Get("Content-Disposition"))
+	assert.Equal(t, headers["x-request-id"], w.Header().Get("x-request-id"))
 }
